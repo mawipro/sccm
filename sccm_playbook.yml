@@ -14,3 +14,11 @@
       register: sccm_ping_result
       changed_when: false
       failed_when: sccm_ping_result.rc != 0
+
+    
+    - name: Check WinRM HTTPS port (5986) is reachable
+      ansible.builtin.wait_for:
+        host: 172.17.74.101
+        port: 5986
+        timeout: 10
+        state: started
