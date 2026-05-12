@@ -1,0 +1,20 @@
+---
+- name: Verify connectivity to SCCM server
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    sccm_server_ip: 172.17.74.101
+
+  tasks:
+    - name: Ping SCCM server from AAP controller
+      ansible.builtin.command: >
+        ping -c 3 {{ sccm_server_ip }}
+      register: sccm_ping_result
+      changed_when: false
+      failed_when: sccm_ping_result.rc != 0
+
+    - name: Show ping result
+      ansible.builtin.debug:
+        msg: "{{ sccm_ping_result.stdout_lines }}"
