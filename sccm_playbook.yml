@@ -25,4 +25,5 @@
       delegate_to: localhost
       run_once: true
       connection: local
+      ansible_no_log: true
 
