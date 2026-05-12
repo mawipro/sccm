@@ -14,7 +14,3 @@
       register: sccm_ping_result
       changed_when: false
       failed_when: sccm_ping_result.rc != 0
-
-    - name: Show ping result
-      ansible.builtin.debug:
-        msg: "{{ sccm_ping_result.stdout_lines }}"
