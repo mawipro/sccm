@@ -6,24 +6,16 @@
 
   vars:
     sccm_server_ip: 172.17.74.101
+    ansible_connection: local
+    ansible_shell_type: sh
+    ansible_shell_executable: /bin/sh
 
   tasks:
-    - name: Ping SCCM server from AAP controller
-      ansible.builtin.command: >
-        ping -c 3 {{ sccm_server_ip }}
-      register: sccm_ping_result
-      changed_when: false
-      failed_when: sccm_ping_result.rc != 0
-
-    
-    - name: Check WinRM HTTPS port (5986) is reachable
+    - name: Check WinRM HTTPS port (5986) from controller
       ansible.builtin.wait_for:
         host: 172.17.74.101
         port: 5986
         timeout: 10
         state: started
-      delegate_to: localhost
-      run_once: true
-      connection: local
-      ansible_no_log: true
+
 
