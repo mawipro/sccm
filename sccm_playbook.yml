@@ -22,3 +22,7 @@
         port: 5986
         timeout: 10
         state: started
+      delegate_to: localhost
+      run_once: true
+      connection: local
+
