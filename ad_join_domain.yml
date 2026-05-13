@@ -20,3 +20,9 @@
         script: |
           nslookup {{ domain_name }}
       register: dns_check
+
+    - name: Check Kerberos connectivity (port 88)
+      ansible.windows.win_powershell:
+        script: |
+          Test-NetConnection {{ domain_name }} -Port 88
+      register: kerberos_check
