@@ -1,6 +1,10 @@
 - name: Check WinRM reachability from AAP
   hosts: all
   gather_facts: false
+  
+  vars:
+      domain_name: "sdxmecm.test"
+
 
   tasks:
 
