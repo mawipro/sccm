@@ -26,3 +26,41 @@
         script: |
           Test-NetConnection {{ domain_name }} -Port 88
       register: kerberos_check
+
+    - name: Check LDAP connectivity (port 389)
+      ansible.windows.win_powershell:
+        script: |
+          Test-NetConnection {{ domain_name }} -Port 389
+      register: ldap_check
+      
+
+    - name: Check time sync
+      ansible.windows.win_powershell:
+        script: |
+          w32tm /query /status
+      register: time_check
+      
+
+    - name: Check domain controller discovery
+      ansible.windows.win_powershell:
+        script: |
+          nltest /dsgetdc:{{ domain_name }}
+      register: dc_check
+      
+
+    - name: Check if already domain joined
+      ansible.windows.win_powershell:
+        script: |
+          (Get-WmiObject Win32_ComputerSystem).Domain
+      register: domain_status
+      
+
+    - name: Show pre-check summary
+      ansible.builtin.debug:
+        msg:
+          DNS: "{{ dns_check.stdout | default('FAILED') }}"
+          Kerberos: "{{ kerberos_check.stdout | default('FAILED') }}"
+          LDAP: "{{ ldap_check.stdout | default('FAILED') }}"
+          Time: "{{ time_check.stdout | default('FAILED') }}"
+          DC: "{{ dc_check.stdout | default('FAILED') }}"
+          Domain: "{{ domain_status.stdout | default('FAILED') }}"
