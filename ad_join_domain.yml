@@ -1,0 +1,9 @@
+- name: Check WinRM reachability from AAP
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Check WinRM HTTPS port
+      ansible.builtin.wait_for:
+        host: 172.17.77.17
+        port: 5986
+        timeout: 10
