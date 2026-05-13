@@ -58,9 +58,9 @@
     - name: Show pre-check summary
       ansible.builtin.debug:
         msg:
-          DNS: "{{ dns_check.stdout | default('FAILED') }}"
-          Kerberos: "{{ kerberos_check.stdout | default('FAILED') }}"
-          LDAP: "{{ ldap_check.stdout | default('FAILED') }}"
-          Time: "{{ time_check.stdout | default('FAILED') }}"
-          DC: "{{ dc_check.stdout | default('FAILED') }}"
-          Domain: "{{ domain_status.stdout | default('FAILED') }}"
+          DNS: "{{ dns_check.output | default('FAILED') }}"
+          Kerberos: "{{ kerberos_check.output | default('FAILED') }}"
+          LDAP: "{{ ldap_check.output | default('FAILED') }}"
+          Time: "{{ time_check.output | default('FAILED') }}"
+          DC: "{{ dc_check.output | default('FAILED') }}"
+          Domain: "{{ domain_status.output | default('FAILED') }}"
