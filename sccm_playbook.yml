@@ -26,6 +26,7 @@
           nslookup {{ domain_name }}
       register: dns_check
       ignore_errors: yes
+      ansible_no_log: false
 
     - name: Check DNS resolution 2
       ansible.windows.win_powershell:
