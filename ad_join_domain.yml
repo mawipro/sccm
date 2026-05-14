@@ -8,20 +8,17 @@
     ou_path: "OU=Servers,DC=sdxmecm,DC=test"
 
   tasks:
-    # - name: Set computer hostname to match inventory name ({{ inventory_hostname }})
-    #   ansible.windows.win_powershell:
-    #     script: |
-    #       hostname
-    #       whoami
-    #   register: hostname_change
+    - name: Set computer hostname to match inventory name ({{ inventory_hostname }})
+      ansible.windows.win_powershell:
+        script: |
+          hostname
+          whoami
+      register: hostname_change
+      ignore_errors: true
 
     # - name: Reboot if hostname changed
     #   ansible.windows.win_reboot:
     #   when: hostname_change.reboot_required
-
-    - name: Debug SCCM vars
-      ansible.builtin.debug:
-        msg: "SCCM vars: {{ sccm_username }}, {{ sccm_password }}, {{ sccm_domain }}"
 
     - name: Join domain {{ sccm_domain }} (using PowerShell)
       ansible.windows.win_shell: |
