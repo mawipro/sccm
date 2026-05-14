@@ -1,59 +1,43 @@
-- name: Check WinRM reachability from AAP
+---
+- name: Join Windows VM to Domain
   hosts: all
   gather_facts: false
-  
-  vars:
-      domain_name: "sdxmecm.test"
 
+  vars:
+    # VM Details from requirements
+    new_hostname: "svw-ch-appp577"
+    domain_name: "sdxmecm.test"
+    ou_path: "OU=Servers,DC=sdxmecm,DC=test"
 
   tasks:
+    - name: Set computer hostname to {{ new_hostname }}
+      ansible.windows.win_hostname:
+        name: "{{ new_hostname }}"
+      register: hostname_change
 
-    - name: Check DNS resolution from VM
-      ansible.windows.win_powershell:
-        script: |
-          nslookup {{ domain_name }}
-      register: dns_check
+    - name: Reboot if hostname changed
+      ansible.windows.win_reboot:
+      when: hostname_change.reboot_required
 
-    - name: Check Kerberos connectivity (port 88)
-      ansible.windows.win_powershell:
-        script: |
-          Test-NetConnection {{ domain_name }} -Port 88
-      register: kerberos_check
+    - name: Join domain {{ domain_name }}
+      ansible.windows.win_domain_membership:
+        dns_domain_name: "{{ domain_name }}"
+        domain_admin_user: "{{ ansible_user }}"
+        domain_admin_password: "{{ ansible_password }}"
+        domain_ou_path: "{{ ou_path }}"
+        state: domain
+      register: domain_join
 
-    - name: Check LDAP connectivity (port 389)
-      ansible.windows.win_powershell:
-        script: |
-          Test-NetConnection {{ domain_name }} -Port 389
-      register: ldap_check
-      
+    - name: Reboot if domain join requires it
+      ansible.windows.win_reboot:
+      when: domain_join.reboot_required
 
-    - name: Check time sync
-      ansible.windows.win_powershell:
-        script: |
-          w32tm /query /status
-      register: time_check
-      
-
-    - name: Check domain controller discovery
-      ansible.windows.win_powershell:
-        script: |
-          nltest /dsgetdc:{{ domain_name }}
-      register: dc_check
-      
-
-    - name: Check if already domain joined
+    - name: Verify domain join status
       ansible.windows.win_powershell:
         script: |
           (Get-WmiObject Win32_ComputerSystem).Domain
-      register: domain_status
-      
+      register: domain_status_check
 
-    - name: Show pre-check summary
+    - name: Display current domain
       ansible.builtin.debug:
-        msg:
-          DNS: "{{ dns_check.output | default('FAILED') }}"
-          Kerberos: "{{ kerberos_check.output | default('FAILED') }}"
-          LDAP: "{{ ldap_check.output | default('FAILED') }}"
-          Time: "{{ time_check.output | default('FAILED') }}"
-          DC: "{{ dc_check.output | default('FAILED') }}"
-          Domain: "{{ domain_status.output | default('FAILED') }}"
+        msg: "The server is now joined to: {{ domain_status_check.output[0] }}"
