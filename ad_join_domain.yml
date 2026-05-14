@@ -17,18 +17,20 @@
       ansible.windows.win_reboot:
       when: hostname_change.reboot_required
 
-    - name: Join domain {{ sccm_domain }}
-      ansible.windows.win_domain_membership:
-        dns_domain_name: "{{ sccm_domain }}"
-        domain_admin_user: "{{ sccm_domain }}\\{{ sccm_username }}"
-        domain_admin_password: "{{ sccm_password }}"
-        domain_ou_path: "{{ ou_path }}"
-        state: domain
-      register: domain_join
+    - name: Join domain {{ sccm_domain }} (using PowerShell)
+      ansible.windows.win_shell: |
+        $passwd = ConvertTo-SecureString "{{ sccm_password }}" -AsPlainText -Force
+        $creds = New-Object System.Management.Automation.PSCredential ("{{ sccm_domain }}\{{ sccm_username }}", $passwd)
+        Add-Computer -DomainName "{{ sccm_domain }}" -Credential $creds -OUPath "{{ ou_path }}" -Force
+      register: domain_join_ps
+      changed_when: "'HasSucceeded : True' in domain_join_ps.stdout"
+      failed_when: 
+        - domain_join_ps.rc != 0
+        - "'is already a member of domain' not in domain_join_ps.stderr"
 
-    - name: Reboot if domain join requires it
+    - name: Reboot if domain join was successful
       ansible.windows.win_reboot:
-      when: domain_join.reboot_required
+      when: domain_join_ps.changed
 
     - name: Verify domain join status
       ansible.windows.win_powershell:
