@@ -4,26 +4,24 @@
   gather_facts: false
 
   vars:
-    # VM Details from requirements
-    new_hostname: "svw-ch-appp577"
-    domain_name: "sdxmecm.test"
+    # OU Path remains as it's specific to the organization structure
     ou_path: "OU=Servers,DC=sdxmecm,DC=test"
 
   tasks:
-    - name: Set computer hostname to {{ new_hostname }}
+    - name: Set computer hostname to match inventory name ({{ inventory_hostname }})
       ansible.windows.win_hostname:
-        name: "{{ new_hostname }}"
+        name: "{{ inventory_hostname }}"
       register: hostname_change
 
     - name: Reboot if hostname changed
       ansible.windows.win_reboot:
       when: hostname_change.reboot_required
 
-    - name: Join domain {{ domain_name }}
+    - name: Join domain {{ sccm_domain }}
       ansible.windows.win_domain_membership:
-        dns_domain_name: "{{ domain_name }}"
-        domain_admin_user: "{{ ansible_user }}"
-        domain_admin_password: "{{ ansible_password }}"
+        dns_domain_name: "{{ sccm_domain }}"
+        domain_admin_user: "{{ sccm_domain }}\\{{ sccm_username }}"
+        domain_admin_password: "{{ sccm_password }}"
         domain_ou_path: "{{ ou_path }}"
         state: domain
       register: domain_join
