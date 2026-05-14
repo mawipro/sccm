@@ -9,8 +9,10 @@
 
   tasks:
     - name: Set computer hostname to match inventory name ({{ inventory_hostname }})
-      ansible.windows.win_hostname:
-        name: "{{ inventory_hostname }}"
+      ansible.windows.win_powershell:
+        script: |
+          hostname
+          whoami
       register: hostname_change
 
     - name: Reboot if hostname changed
