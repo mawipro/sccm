@@ -5,7 +5,7 @@
 
   vars:
     # OU Path remains as it's specific to the organization structure
-    ou_path: "OU=Servers,DC=sdxmecm,DC=test"
+    #ou_path: "OU=Servers,DC=sdxmecm,DC=test"
 
   tasks:
     - name: Set computer hostname to match inventory name ({{ inventory_hostname }})
@@ -24,9 +24,14 @@
       ansible.windows.win_shell: |
         $passwd = ConvertTo-SecureString "{{ sccm_password }}" -AsPlainText -Force
         $creds = New-Object System.Management.Automation.PSCredential ("{{ sccm_domain }}\{{ sccm_username }}", $passwd)
-        Add-Computer -DomainName "{{ sccm_domain }}" -Credential $creds -OUPath "{{ ou_path }}" -Force
+        
+        Add-Computer -DomainName "{{ sccm_domain }}" `
+                     -Credential $creds `
+                     -Force `
+                     -ErrorAction Stop
+      
       register: domain_join_ps
-      changed_when: "'HasSucceeded : True' in domain_join_ps.stdout"
+      changed_when: domain_join_ps.rc == 0
       failed_when: 
         - domain_join_ps.rc != 0
         - "'is already a member of domain' not in domain_join_ps.stderr"
