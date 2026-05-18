@@ -27,12 +27,23 @@
                       throw "ConfigurationManager.psd1 not found at $ModulePath"
                   }
               } else {
-                  # Fallback: try common location if environment variable is missing
-                  $FallbackPath = "C:\Program Files (x86)\Microsoft Endpoint Manager\AdminConsole\bin\ConfigurationManager.psd1"
-                  if (Test-Path $FallbackPath) {
-                      Import-Module $FallbackPath -ErrorAction Stop
-                  } else {
-                      throw "SCCM PowerShell module not found. SMS_ADMIN_UI_PATH is empty and fallback path failed."
+                  # Fallback: try common locations if environment variable is missing
+                  $FallbackPaths = @(
+                      "C:\Program Files (x86)\Microsoft Endpoint Manager\AdminConsole\bin\ConfigurationManager.psd1",
+                      "C:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1",
+                      "D:\Program Files (x86)\Microsoft Endpoint Manager\AdminConsole\bin\ConfigurationManager.psd1",
+                      "D:\Program Files (x86)\Microsoft Configuration Manager\AdminConsole\bin\ConfigurationManager.psd1"
+                  )
+                  $Loaded = $false
+                  foreach ($Path in $FallbackPaths) {
+                      if (Test-Path $Path) {
+                          Import-Module $Path -ErrorAction Stop
+                          $Loaded = $true
+                          break
+                      }
+                  }
+                  if (-not $Loaded) {
+                      throw "SCCM PowerShell module not found. SMS_ADMIN_UI_PATH is empty and all fallback paths failed."
                   }
               }
           }
@@ -88,9 +99,9 @@
     #           # If we reach here, discovery failed to find the machine within the timeout
     #           throw "Timeout: Device $TargetName did not appear in SCCM after 5 minutes. Please verify AD sync and Discovery settings."
     #       }
-    #   delegate_to: "{{ sccm_server }}"
-    #   register: push_output
+      delegate_to: "{{ sccm_server }}"
+      register: push_output
 
-    # - name: Report Results
-    #   ansible.builtin.debug:
-    #     msg: "{{ push_output.msg | default('Push initiation failed or timed out.') }}"
+    - name: Report Results
+      ansible.builtin.debug:
+        msg: "{{ push_output.msg | default('Push initiation failed or timed out.') }}"
