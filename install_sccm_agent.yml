@@ -1,0 +1,96 @@
+---
+- name: SCCM Agent Push
+  hosts: all
+  gather_facts: false
+  vars:
+    # The SCCM Primary Site Server where the push will be initiated from
+    sccm_server: "172.17.74.101"
+    site_code: "PS1"
+
+  tasks:
+    - name: Trigger SCCM Client Push from SCCM Server
+      ansible.windows.win_powershell:
+        script: |
+          $TargetName = "{{ inventory_hostname }}"
+          $SiteCode = "{{ site_code }}"
+          
+          Write-Output "Starting SCCM Client Push process for $TargetName"
+
+          # 1. Load Configuration Manager Module
+          if (!(Get-Module -Name ConfigurationManager)) {
+              $AdminUIPath = $env:SMS_ADMIN_UI_PATH
+              if ($AdminUIPath) {
+                  $ModulePath = Join-Path (Split-Path $AdminUIPath) "ConfigurationManager.psd1"
+                  if (Test-Path $ModulePath) {
+                      Import-Module $ModulePath -ErrorAction Stop
+                  } else {
+                      throw "ConfigurationManager.psd1 not found at $ModulePath"
+                  }
+              } else {
+                  # Fallback: try common location if environment variable is missing
+                  $FallbackPath = "C:\Program Files (x86)\Microsoft Endpoint Manager\AdminConsole\bin\ConfigurationManager.psd1"
+                  if (Test-Path $FallbackPath) {
+                      Import-Module $FallbackPath -ErrorAction Stop
+                  } else {
+                      throw "SCCM PowerShell module not found. SMS_ADMIN_UI_PATH is empty and fallback path failed."
+                  }
+              }
+          }
+
+          # 2. Connect to the SCCM Site Drive
+          $SiteDrive = "$($SiteCode):"
+          if (!(Test-Path $SiteDrive)) {
+              # Create the drive if it doesn't exist
+              New-PSDrive -Name $SiteCode -PSProvider CMSite -Root $env:COMPUTERNAME -ErrorAction SilentlyContinue | Out-Null
+          }
+          
+          try {
+              Set-Location $SiteDrive -ErrorAction Stop
+          } catch {
+              throw "Could not switch to SCCM Site Drive $SiteDrive. Verify the Site Code '$SiteCode' is correct."
+          }
+
+          # 3. Discovery & Push Logic
+          # First, check if the device is already known to SCCM
+          $Device = Get-CMDevice -Name $TargetName -ErrorAction SilentlyContinue
+          
+          if (-not $Device) {
+              Write-Output "Device $TargetName not found in SCCM database. Triggering 'Active Directory System Discovery'..."
+              # Trigger discovery to find the recently joined domain object
+              Start-CMSystemDiscovery -SiteCode $SiteCode
+              
+              # Polling loop to wait for the device to appear in the database (max 3 minutes)
+              $timeout = 180
+              $elapsed = 0
+              while (-not $Device -and $elapsed -lt $timeout) {
+                  Start-Sleep -Seconds 20
+                  $elapsed += 20
+                  $Device = Get-CMDevice -Name $TargetName -ErrorAction SilentlyContinue
+                  Write-Output "Waiting for $TargetName to appear in SCCM database... ($elapsed seconds elapsed)"
+              }
+          }
+
+          # 4. Initiate the Push
+          if ($Device) {
+              Write-Output "Device $TargetName found (ResourceID: $($Device.ResourceID)). Initiating Client Push installation..."
+              
+              # Install-CMClient kicks off the push process
+              # -AlwaysInstallClient: $false (don't force reinstall if healthy)
+              # -IncludeDomainController: $true (allow push to DCs if needed)
+              Install-CMClient -DeviceName $TargetName -AlwaysInstallClient $false -IncludeDomainController $true -SiteCode $SiteCode -ErrorAction Stop
+              
+              return @{
+                  changed = $true
+                  msg = "Client push initiated successfully for $TargetName"
+                  resource_id = $Device.ResourceID
+              }
+          } else {
+              # If we reach here, discovery failed to find the machine within the timeout
+              throw "Timeout: Device $TargetName did not appear in SCCM after 3 minutes. Please verify AD sync and Discovery settings."
+          }
+      delegate_to: "{{ sccm_server }}"
+      register: push_output
+
+    - name: Report Results
+      ansible.builtin.debug:
+        msg: "{{ push_output.msg | default('Push initiation failed or timed out.') }}"
