@@ -61,44 +61,44 @@
               throw "Could not switch to SCCM Site Drive $SiteDrive. Verify the Site Code '$SiteCode' is correct."
           }
 
-    #       # 3. Discovery & Push Logic
-    #       # First, check if the device is already known to SCCM
-    #       $Device = Get-CMDevice -Name $TargetName -ErrorAction SilentlyContinue
+          # 3. Discovery & Push Logic
+          # First, check if the device is already known to SCCM
+          $Device = Get-CMDevice -Name $TargetName -ErrorAction SilentlyContinue
           
-    #       if (-not $Device) {
-    #           Write-Output "Device $TargetName not found in SCCM database. Triggering 'Active Directory System Discovery'..."
-    #           # Trigger discovery to find the recently joined domain object
-    #           Invoke-CMSystemDiscovery -SiteCode $SiteCode
+          if (-not $Device) {
+              Write-Output "Device $TargetName not found in SCCM database. Triggering 'Active Directory System Discovery'..."
+              # Trigger discovery to find the recently joined domain object
+              Invoke-CMSystemDiscovery -SiteCode $SiteCode
               
-    #           # Polling loop to wait for the device to appear in the database (max 5 minutes)
-    #           $timeout = 300
-    #           $elapsed = 0
-    #           while (-not $Device -and $elapsed -lt $timeout) {
-    #               Start-Sleep -Seconds 30
-    #               $elapsed += 30
-    #               $Device = Get-CMDevice -Name $TargetName -ErrorAction SilentlyContinue
-    #               Write-Output "Waiting for $TargetName to appear in SCCM database... ($elapsed seconds elapsed)"
-    #           }
-    #       }
+              # Polling loop to wait for the device to appear in the database (max 5 minutes)
+              $timeout = 300
+              $elapsed = 0
+              while (-not $Device -and $elapsed -lt $timeout) {
+                  Start-Sleep -Seconds 30
+                  $elapsed += 30
+                  $Device = Get-CMDevice -Name $TargetName -ErrorAction SilentlyContinue
+                  Write-Output "Waiting for $TargetName to appear in SCCM database... ($elapsed seconds elapsed)"
+              }
+          }
 
-    #       # 4. Initiate the Push
-    #       if ($Device) {
-    #           Write-Output "Device $TargetName found (ResourceID: $($Device.ResourceID)). Initiating Client Push installation..."
+          # 4. Initiate the Push
+          if ($Device) {
+              Write-Output "Device $TargetName found (ResourceID: $($Device.ResourceID)). Initiating Client Push installation..."
               
-    #           # Install-CMClient kicks off the push process
-    #           # -AlwaysInstallClient: $false (don't force reinstall if healthy)
-    #           # -IncludeDomainController: $true (allow push to DCs if needed)
-    #           Install-CMClient -DeviceName $TargetName -AlwaysInstallClient $false -IncludeDomainController $true -SiteCode $SiteCode -ErrorAction Stop
+              # Install-CMClient kicks off the push process
+              # -AlwaysInstallClient: $true (forces reinstall since you manually uninstalled it but SCCM still says Yes)
+              # -IncludeDomainController: $true (allow push to DCs if needed)
+              Install-CMClient -DeviceName $TargetName -AlwaysInstallClient $true -IncludeDomainController $true -SiteCode $SiteCode -ErrorAction Stop
               
-    #           return @{
-    #               changed = $true
-    #               msg = "Client push initiated successfully for $TargetName"
-    #               resource_id = $Device.ResourceID
-    #           }
-    #       } else {
-    #           # If we reach here, discovery failed to find the machine within the timeout
-    #           throw "Timeout: Device $TargetName did not appear in SCCM after 5 minutes. Please verify AD sync and Discovery settings."
-    #       }
+              return @{
+                  changed = $true
+                  msg = "Client push initiated successfully for $TargetName"
+                  resource_id = $Device.ResourceID
+              }
+          } else {
+              # If we reach here, discovery failed to find the machine within the timeout
+              throw "Timeout: Device $TargetName did not appear in SCCM after 5 minutes. Please verify AD sync and Discovery settings."
+          }
       delegate_to: "{{ sccm_server }}"
       register: push_output
 
